@@ -1,20 +1,21 @@
 
 const { ethers, deployments} = require("hardhat");
 const {  expect, assert } = require("chai");
+//const { BigNumber, Contract, Signer } = require("ethers");
 
 describe("Staking", () => {
   let StakingFactory
   let Staking
-  let Stakeholders
+  let Stakers
   let stakedAmount = ethers.utils.parseEther ("2")
   let stakeholder
   let deployer
   let StakeholdersAddress
 
   beforeEach(async() => {
-      Stakeholders = await ethers.getSigners();
-      deployer = Stakeholders[0];
-      stakeholder = Stakeholders[1];
+      Stakers = await ethers.getSigners();
+      deployer = Stakers[0];
+      stakeholder = Stakers[1];
       StakingFactory = await ethers.getContractFactory("Staking");
       Staking = await StakingFactory.deploy();
   })
@@ -26,7 +27,7 @@ describe("Staking", () => {
   });
 
   it("allows people to stake tokens and requires a minimum stake", async () => {
-    await expect(Staking.stake()).to.be.revertedWith(
+    await expect(Staking.createStake()).to.be.revertedWith(
       "Minimum stake is 1 ether"
     )
   });
@@ -35,7 +36,7 @@ describe("Staking", () => {
       console.log('\t'," Stakeholder Address: ", deployer.address)
 
       console.log('\t',"  Staking...")
-      tx = await Staking.stake({ value: stakedAmount })
+      tx = await Staking.createStake({ value: totalStaked })
 
       console.log('\t',"  Waiting for confirmation...")
       const txResponse = await Staking.getstakeholdersIndex
@@ -43,15 +44,15 @@ describe("Staking", () => {
         deployer.address
       )
 
-      assert.equal(txResponse.toString(), stakedAmount.toString())
+      assert.equal(txResponse.toString(), totalStaked.toString())
 
       const newBalance = await Staking.getBalance()
       console.log('\t',"  New balance: ", ethers.utils.formatEther(newBalance))
-      expect(newBalance).to.equal(stakedAmount);
+      expect(newBalance).to.equal(totalStaked);
     });
 
     it("Adds staker to array of stakeholders", async () => {
-      await Staking.stake({ value: stakedAmount })
+      await Staking.createStake({ value: totalStaked })
       const staker = await Staking.getStakeholders(0)
       assert.equal(deployer.address, staker)
       expect(await Staking.getStakeholder()).to.include(deployer.address);
@@ -62,8 +63,8 @@ describe("Staking", () => {
 
   describe ("Withdraw", () => {
     beforeEach(async () => {
-      await Staking.stake({ value: stakedAmount})
-      Stakeholders = await ethers.getSigners()
+      await Staking.createStake({ value: totalStaked})
+      Stakers = await ethers.getSigners()
       StakingFactory = await ethers.getContractFactory("Staking");
     })
 
@@ -80,7 +81,7 @@ describe("Staking", () => {
       console.log('\t',"  Withdrawing...")
       await expect (await Staking.withdrawStake()).to.changeEtherBalances(
         [ deployer.address, Staking ],
-        [ stakedAmount, stakedAmount.mul("-1") ]
+        [ totalStaked, totalStaked.mul("-1") ]
       );
        expect(await Staking.getstakeholdersIndex(deployer.address)).to.equal(0);
 
